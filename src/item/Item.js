@@ -2026,6 +2026,8 @@ new function() { // Injection scope for hit-test functions shared with project
      * @option options.selected {Boolean} only hit selected items
      * @option options.hitUnfilledPaths {Boolean} Allow hitting null or alpha 0
      *     fills for paths
+     * @option options.hitUnstrokedPaths {Boolean} Allow hitting null or alpha 0
+     *     strokes for paths
      *
      * @param {Point} point the point where the hit-test should be performed
      *     (in global coordinates system).
