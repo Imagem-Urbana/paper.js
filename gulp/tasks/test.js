@@ -43,6 +43,8 @@ gulp.task('test:node', ['minify:acorn'], function(callback) {
 gulp.task('test:browser', ['minify:acorn'], function() {
     gulp.src('.')
         .pipe(webserver({
+            host: '0.0.0.0', // Bind to all interfaces for Docker access
+            port: 8000,
             open: '/test'
         }));
 });

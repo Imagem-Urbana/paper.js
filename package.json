@@ -1,5 +1,6 @@
 {
   "name": "paper",
+  "private": true,
   "version": "0.12.18",
   "description": "The Swiss Army Knife of Vector Graphics Scripting",
   "license": "MIT",
