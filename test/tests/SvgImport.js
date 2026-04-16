@@ -203,7 +203,7 @@ if (!isNodeContext) {
         'symbols': {},
         'blendModes': {},
         'gradients-1': {},
-        'gradients-2': !isPhantomContext && {},
+        'gradients-2': {},
         'gradients-3': {},
         'gradients-4': {}
     };

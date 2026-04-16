@@ -27,7 +27,7 @@
     "jshint": "gulp jshint",
     "test": "gulp test",
     "test:browser": "gulp test:browser",
-    "test:phantom": "gulp test:phantom",
+    "test:playwright": "gulp test:playwright",
     "test:node": "gulp test:node"
   },
   "files": [
@@ -67,7 +67,7 @@
     "gulp-jshint": "^2.1.0",
     "gulp-json-modifier": "^1.0.0",
     "gulp-prepro": "^2.4.0",
-    "gulp-qunits": "^2.1.2",
+    "playwright": "^1.52.0",
     "gulp-rename": "^2.0.0",
     "gulp-shell": "^0.8.0",
     "gulp-symlink": "^2.1.4",

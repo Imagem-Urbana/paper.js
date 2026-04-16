@@ -16,7 +16,7 @@ Build the library:
 docker compose up paperjs
 ```
 
-Build and run automated tests (both Node and PhantomJS):
+Build and run automated tests (both Node and Playwright/Chromium):
 ```bash
 docker compose up paperjs-test
 ```

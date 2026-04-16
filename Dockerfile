@@ -1,11 +1,5 @@
 # Paper.js Build Environment
-# Using Debian Buster (not Bullseye) because PhantomJS requires OpenSSL 1.1
-FROM node:18-buster
-
-# Debian Buster is EOL, repos moved to archive
-RUN sed -i 's|http://deb.debian.org|http://archive.debian.org|g' /etc/apt/sources.list \
-    && sed -i 's|http://security.debian.org|http://archive.debian.org|g' /etc/apt/sources.list \
-    && sed -i '/stretch-updates/d' /etc/apt/sources.list
+FROM node:18-bookworm
 
 # Install system dependencies for native modules (canvas, etc.)
 RUN apt-get update && apt-get install -y \
@@ -23,9 +17,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -f -v
 
-# Try to fix PhantomJS OpenSSL configuration issues
-ENV OPENSSL_CONF=/dev/null
-
 # Set working directory
 WORKDIR /app
 
@@ -37,6 +28,9 @@ RUN yarn config set ignore-engines true
 
 # Install dependencies
 RUN yarn install --frozen-lockfile
+
+# Install Playwright Chromium browser and its system dependencies
+RUN npx playwright install-deps chromium && npx playwright install chromium
 
 # Copy the rest of the application
 COPY . .

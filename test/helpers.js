@@ -13,7 +13,6 @@
 // We call our variable `isNodeContext` because resemble.js exposes a global
 // `isNode` function which would override it and break node check.
 var isNodeContext = typeof global === 'object',
-    isPhantomContext = typeof window === 'object' && !!window.callPhantom,
     scope;
 
 if (isNodeContext) {
@@ -43,8 +42,18 @@ var nativeClasses = this.nativeClasses || {
     MouseEvent: this.MouseEvent || {}
 };
 
+// Preserve native Symbol before paper.install() overwrites it with
+// paper.Symbol (which is SymbolDefinition, and lacks Symbol.for etc.)
+var nativeSymbol = scope.Symbol;
+
 // The unit-tests expect the paper classes to be global.
 paper.install(scope);
+
+// Restore native Symbol so that built-in APIs (e.g. jsdom's DOMParser)
+// that rely on Symbol.for continue to work.
+if (nativeSymbol) {
+    scope.Symbol = nativeSymbol;
+}
 
 // Override console.error, so that we can catch errors that are only logged to
 // the console.
@@ -612,30 +621,6 @@ var compareSVG = function(done, actual, expected, message, options) {
 //
 // Interactions helpers
 //
-var MouseEventPolyfill = function(type, params) {
-    var mouseEvent = document.createEvent('MouseEvent');
-    mouseEvent.initMouseEvent(
-        type,
-        params.bubbles,
-        params.cancelable,
-        window,
-        0,
-        params.screenX,
-        params.screenY,
-        params.clientX,
-        params.clientY,
-        params.ctrlKey,
-        params.altKey,
-        params.shiftKey,
-        params.metaKey,
-        params.button,
-        params.relatedTarget
-    );
-    return mouseEvent;
-};
-
-MouseEventPolyfill.prototype = nativeClasses.Event.prototype;
-
 var triggerMouseEvent = function(type, point, target) {
     // Depending on event type, events have to be triggered on different
     // elements due to the event handling implementation (see `viewEvents`
@@ -646,11 +631,7 @@ var triggerMouseEvent = function(type, point, target) {
     // If `gulp load` was run, there is a name collision between paper Event /
     // MouseEvent and native javascript classes. In this case, we need to use
     // native classes stored in the nativeClasses object instead.
-    // MouseEvent class does not exist in PhantomJS, so in that case, we need to
-    // use a polyfill method, see: https://stackoverflow.com/questions/42929639
-    var MouseEvent = typeof nativeClasses.MouseEvent === 'function'
-        ? nativeClasses.MouseEvent
-        : MouseEventPolyfill;
+    var MouseEvent = nativeClasses.MouseEvent;
     var event = new MouseEvent(type, {
         bubbles: true,
         cancelable: true,
