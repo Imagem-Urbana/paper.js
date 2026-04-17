@@ -16,6 +16,9 @@
   ],
   "main": "dist/paper-full.js",
   "types": "dist/paper.d.ts",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "minify": "gulp minify",
     "build": "gulp build",

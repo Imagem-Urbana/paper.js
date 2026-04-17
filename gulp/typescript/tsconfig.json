@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES5",
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "skipLibCheck": true,
+    "types": []
   },
   "files"          : [
     "typescript-definition-test.ts"
