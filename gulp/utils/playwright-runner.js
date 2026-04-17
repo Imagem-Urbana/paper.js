@@ -13,12 +13,13 @@
 // Playwright-based QUnit test runner for browser tests.
 // Replaces the PhantomJS runner from gulp-qunits.
 
-var chromium = require('playwright').chromium;
+var playwright = require('playwright');
 var path = require('path');
 var fs = require('fs');
 var log = require('fancy-log');
 var colors = require('ansi-colors');
 
+var BROWSER_NAME = process.env.BROWSER || 'chromium';
 var pluginName = 'paper.js (Playwright)';
 var labelFail = colors.red('✖');
 var labelPass = colors.green('✔');
@@ -160,7 +161,22 @@ function run(options, callback) {
             ' seconds has expired. Aborting...');
     }, timeout);
 
-    chromium.launch({ headless: true }).then(function(b) {
+    // Channel-based browsers (chrome, chrome-beta, msedge, etc.) are launched
+    // via the chromium browser type with a channel option.
+    var CHANNEL_BROWSERS = ['chrome', 'chrome-beta', 'chrome-dev', 'chrome-canary',
+        'msedge', 'msedge-beta', 'msedge-dev', 'msedge-canary'];
+    var browserTypeName = CHANNEL_BROWSERS.indexOf(BROWSER_NAME) !== -1
+        ? 'chromium' : BROWSER_NAME;
+    var launchOptions = { headless: true };
+    if (browserTypeName !== BROWSER_NAME) {
+        launchOptions.channel = BROWSER_NAME;
+    }
+    var browserType = playwright[browserTypeName];
+    if (!browserType) {
+        return finish('Unsupported browser: ' + BROWSER_NAME);
+    }
+    log(pluginName + ': Using browser ' + colors.blue(BROWSER_NAME));
+    browserType.launch(launchOptions).then(function(b) {
         browser = b;
         return browser.newPage();
     }).then(function(page) {

@@ -46,6 +46,7 @@ CMD ["yarn", "dist"]
 FROM base AS test
 
 ARG BROWSER=chromium
+ENV BROWSER=${BROWSER}
 ARG CACHE_DATE=unknown
 
 # CACHE_DATE busts cache to always fetch the latest browser version

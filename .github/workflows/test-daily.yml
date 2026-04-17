@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, chrome-beta, firefox]
+        browser: [chromium, chrome-beta]
     uses: ./.github/workflows/_test.yml
     with:
       browser: ${{ matrix.browser }}

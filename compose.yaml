@@ -22,6 +22,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: test
+      args:
+        BROWSER: ${BROWSER:-chromium}
     volumes:
       - ./test-results:/app/test-results
     ports:
