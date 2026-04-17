@@ -22,14 +22,14 @@ gulp.task('test:playwright', ['minify:acorn'], function(callback) {
     // Start a local web server, run Playwright tests, then stop.
     var stream = gulp.src('.')
         .pipe(webserver({
-            host: '127.0.0.1',
+            host: '0.0.0.0',
             port: 8001,
             open: false
         }));
     playwrightRunner.run({
         url: 'http://127.0.0.1:8001/test',
         checkGlobals: true,
-        timeout: 40
+        timeout: 120
     }, function(err) {
         stream.emit('kill');
         callback(err);

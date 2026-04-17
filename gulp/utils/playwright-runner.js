@@ -143,6 +143,10 @@ function run(options, callback) {
             page.on('pageerror', function(err) {
                 finish('Page error: ' + err.message);
             });
+            // Listen for console messages
+            page.on('console', function(msg) {
+                log('Browser console [' + msg.type() + ']: ' + msg.text());
+            });
             return page.goto(url, { waitUntil: 'load', timeout: timeout });
         });
     }).catch(function(err) {

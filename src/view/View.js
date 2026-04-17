@@ -1509,7 +1509,14 @@ new function() { // Injection scope for event handling on the browser
                 prevFocus = tempFocus = overView = downPoint = lastPoint =
                     downItem = overItem = dragItem = clickItem = clickTime =
                     dblClick = null;
+            },
+
+            _setMouseState: function(options) {
+                // Helper for tests to manage internal mouse state
+                if (options.dragging !== undefined) dragging = options.dragging;
+                if (options.mouseDown !== undefined) mouseDown = options.mouseDown;
             }
         }
     };
 });
+

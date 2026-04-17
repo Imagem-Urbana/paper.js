@@ -4,6 +4,10 @@
     <title>Paper.js Tests</title>
     <link rel="stylesheet" href="../node_modules/qunitjs/qunit/qunit.css">
     <script src="../node_modules/qunitjs/qunit/qunit.js"></script>
+    <script>
+        // Set a timeout for async tests to prevent infinite hangs
+        QUnit.config.testTimeout = 5000; // 5 seconds per test
+    </script>
     <script src="../dist/paper-full.js"></script>
     <script src="../node_modules/prepro/lib/browser.js"></script>
     <script src="load.js"></script>

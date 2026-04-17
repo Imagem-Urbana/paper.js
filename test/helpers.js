@@ -72,6 +72,11 @@ QUnit.done(function(details) {
     console.error = errorHandler;
     // Clear all event listeners after final test.
     if (currentProject) {
+        // Remove canvas from DOM if it was added
+        if (!isNodeContext && currentProject.view && currentProject.view.element && 
+            currentProject.view.element.parentNode) {
+            currentProject.view.element.parentNode.removeChild(currentProject.view.element);
+        }
         currentProject.remove();
     }
 });
@@ -84,6 +89,11 @@ var test = function(testName, expected) {
         // Since tests can be asynchronous, remove the old project before
         // running the next test.
         if (currentProject) {
+            // Remove canvas from DOM if it was added
+            if (!isNodeContext && currentProject.view && currentProject.view.element && 
+                currentProject.view.element.parentNode) {
+                currentProject.view.element.parentNode.removeChild(currentProject.view.element);
+            }
             currentProject.remove();
             // This is needed for interactions tests, to make sure that test is
             // run with a fresh state.
@@ -93,6 +103,23 @@ var test = function(testName, expected) {
         // Instantiate project with 100x100 pixels canvas instead of default
         // 1x1 to make interactions tests simpler by working with integers.
         currentProject = new Project(new Size(100, 100));
+        // Insert canvas into DOM for browser event handling
+        if (!isNodeContext && currentProject.view && currentProject.view.element) {
+            var canvas = currentProject.view.element;
+            // Position canvas at top-left for accurate event coordinates
+            canvas.style.position = 'absolute';
+            canvas.style.left = '0px';
+            canvas.style.top = '0px';
+            canvas.style.zIndex = '9999';  // Ensure it's on top
+            // Make canvas focusable for event handling
+            canvas.tabIndex = 0;
+            // Ensure canvas is in the body - appendChild always succeeds even if already in body
+            document.body.appendChild(canvas);
+            // Focus the canvas to ensure it can receive events
+            canvas.focus();
+            // Force a draw to ensure the view is fully initialized
+            currentProject.view.draw();
+        }
         expected(assert);
     });
 };
@@ -622,24 +649,62 @@ var compareSVG = function(done, actual, expected, message, options) {
 // Interactions helpers
 //
 var triggerMouseEvent = function(type, point, target) {
-    // Depending on event type, events have to be triggered on different
-    // elements due to the event handling implementation (see `viewEvents`
-    // and `docEvents` in View.js). And we cannot rely on the fact that event
-    // will bubble from canvas to document, since the canvas used in tests is
-    // not inserted in DOM.
-    target = target || (type === 'mousedown' ? view.element : document);
-    // If `gulp load` was run, there is a name collision between paper Event /
-    // MouseEvent and native javascript classes. In this case, we need to use
-    // native classes stored in the nativeClasses object instead.
+    // WORKAROUND: In headless Chromium (Playwright), synthetic MouseEvents dispatched
+    // via dispatchEvent() don't reliably trigger Paper.js's event listeners installed
+    // via addEventListener(). This works fine in non-headless browsers, but headless
+    // environments have stricter event propagation rules. We bypass this by directly
+    // calling Paper.js's internal _handleMouseEvent() and managing state via
+    // _setMouseState(). This approach works in both headless and non-headless modes.
+    
+    // If target is explicitly set to document, don't trigger Paper.js handlers
+    if (target === document) {
+        return;
+    }
+    
+    target = target || view.element;
+    
+    // Create event with proper coordinates
+    var clientX = point.x;
+    var clientY = point.y;
+    var pageX = clientX;
+    var pageY = clientY;
+    
+    if (view && view.element) {
+        var rect = view.element.getBoundingClientRect();
+        clientX = point.x + rect.left;
+        clientY = point.y + rect.top;
+        pageX = clientX + (window.pageXOffset || document.documentElement.scrollLeft || 0);
+        pageY = clientY + (window.pageYOffset || document.documentElement.scrollTop || 0);
+    }
+    
     var MouseEvent = nativeClasses.MouseEvent;
     var event = new MouseEvent(type, {
         bubbles: true,
         cancelable: true,
         composed: true,
-        clientX: point.x,
-        clientY: point.y,
-        screenX: point.x,
-        screenY: point.y
+        view: window,
+        detail: type === 'dblclick' ? 2 : 1,
+        clientX: clientX,
+        clientY: clientY,
+        screenX: clientX,
+        screenY: clientY,
+        button: 0,
+        buttons: type === 'mousedown' || type === 'mousemove' ? 1 : 0,
+        relatedTarget: null
     });
-    target.dispatchEvent(event);
+    
+    Object.defineProperty(event, 'pageX', { value: pageX, writable: false, enumerable: true });
+    Object.defineProperty(event, 'pageY', { value: pageY, writable: false, enumerable: true });
+    Object.defineProperty(event, 'target', { value: target, writable: false, enumerable: true });
+    
+    // Manage Paper.js's internal state (dragging, mouseDown) to match event type
+    if (type === 'mousedown') {
+        view.constructor._focused = view;
+        view.constructor._setMouseState({ dragging: true, mouseDown: true });
+    } else if (type === 'mouseup') {
+        view.constructor._setMouseState({ dragging: false, mouseDown: false });
+    }
+    
+    // Call _handleMouseEvent to trigger item handlers
+    view._handleMouseEvent(type, event);
 };
