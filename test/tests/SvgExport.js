@@ -238,8 +238,8 @@ if (!isNodeContext) {
             strokeWidth: 10
         });
 
-        var symbol = new Symbol(item);
-        symbol.place([50, 50]);
+        var symbol = new SymbolDefinition(item);
+        new SymbolItem(symbol, [50, 50]);
 
         var svg = project.exportSVG({ bounds: 'content', asString: true });
         compareSVG(assert.async(), svg, project.activeLayer);

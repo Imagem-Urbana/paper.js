@@ -1665,8 +1665,8 @@ var Path = PathItem.extend(/** @lends Path# */{
             strokePadding = tolerancePadding,
             join, cap, miterLimit,
             area, loc, res,
-            hitStroke = options.stroke && style.hasStroke(),
-            hitFill = options.fill && style.hasFill(),
+            hitStroke = options.stroke && (style.hasStroke() || options.hitUnstrokedPaths),
+            hitFill = options.fill && (style.hasFill() || options.hitUnfilledPaths),
             hitCurves = options.curves,
             strokeRadius = hitStroke
                     ? style.getStrokeWidth() / 2
@@ -2318,7 +2318,7 @@ new function() { // Scope for drawing
             if (!dontPaint && (hasFill || hasStroke)) {
                 // If the path is part of a compound path or doesn't have a fill
                 // or stroke, there is no need to continue.
-                this._setStyles(ctx, param, viewMatrix);
+                this._setStyles(ctx, param, viewMatrix, strokeMatrix);
                 if (hasFill) {
                     ctx.fill(style.getFillRule());
                     // If shadowColor is defined, clear it after fill, so it

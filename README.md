@@ -257,6 +257,8 @@ folder in your web browser. There should be a green bar at the top, meaning all
 tests have passed. If the bar is red, some tests have not passed. These will be
 highlighted and become visible when scrolling down.
 
+#### Browser Testing
+
 If you are testing on Chrome, some of the tests will fail due to the browser's
 CORS restrictions. In order to run the browser based tests on Chrome, you need
 to run a local web-server through Gulp.js. The following command will handle it
@@ -264,18 +266,34 @@ for you, and will also open the browser at the right address straight away:
 
     yarn test:browser
 
-You can also run the unit tests through PhantomJS in Gulp directly on the
-command line:
+You can also run the unit tests through Playwright (headless Chromium) in Gulp
+directly on the command line:
 
-    yarn test:phantom
+    yarn test:playwright
+
+#### Node.js Testing
 
 To test the Node.js version of Paper.js, use this command:
 
     yarn test:node
 
-And to test both the PhantomJS and Node.js environments together, simply run:
+And to test both the Playwright and Node.js environments together, simply run:
 
     yarn test
+
+#### Docker Testing (Recommended for CI/CD)
+
+For consistent test results across different environments, use Docker:
+
+```bash
+# Run all tests (Playwright + Node.js)
+docker compose -f compose.yaml up paperjs-test
+
+# Or run tests without rebuilding
+docker compose -f compose.yaml run --rm paperjs-test
+```
+
+Docker provides a consistent environment with all dependencies pre-installed, ensuring test results are not affected by host system differences (fonts, color profiles, etc.). See [DOCKER.md](DOCKER.md) for more details.
 
 ### Contributing [![Open Source Helpers](https://www.codetriage.com/paperjs/paper.js/badges/users.svg)](https://www.codetriage.com/paperjs/paper.js)
 

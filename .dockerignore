@@ -1,0 +1,19 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Build output (will be volume-mounted)
+dist
+
+# IDE
+.vscode
+.idea
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+.env

@@ -1,0 +1,16 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  checks: write
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/_test.yml
+    with:
+      browser: chromium

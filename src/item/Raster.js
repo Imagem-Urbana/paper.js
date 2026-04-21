@@ -542,8 +542,16 @@ var Raster = Item.extend(/** @lends Raster# */{
     getSubCanvas: function(/* rect */) {
         var rect = Rectangle.read(arguments),
             ctx = CanvasProvider.getContext(rect.getSize());
-        ctx.drawImage(this.getCanvas(), rect.x, rect.y,
-                rect.width, rect.height, 0, 0, rect.width, rect.height);
+        var clippedStartX = Math.max(0, rect.x);
+        var clippedStartY = Math.max(0, rect.y);
+        var clippedEndX = Math.min(this.getCanvas().width, rect.x + rect.width);
+        var clippedEndY = Math.min(this.getCanvas().height, rect.y + rect.height);
+        ctx.drawImage(this.getCanvas(),
+            clippedStartX, clippedStartY,
+            clippedEndX - clippedStartX, clippedEndY - clippedStartY,
+            clippedStartX - rect.x, clippedStartY - rect.y,
+            clippedEndX - clippedStartX, clippedEndY - clippedStartY
+        );
         return ctx.canvas;
     },
 

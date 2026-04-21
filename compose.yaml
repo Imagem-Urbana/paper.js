@@ -1,0 +1,55 @@
+services:
+  paperjs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    volumes:
+      - ./dist:/app/dist
+    command: yarn build
+
+  paperjs-dist:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dist
+    volumes:
+      - ./dist:/app/dist
+    command: yarn dist
+
+  paperjs-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+      args:
+        BROWSER: ${BROWSER:-chromium}
+    volumes:
+      - ./test-results:/app/test-results
+    ports:
+      - "8001:8001"
+
+  paperjs-test-browser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    volumes:
+      - ./test-results:/app/test-results
+    ports:
+      - "8000:8000"
+    command: sh -c "yarn build && yarn test:browser"
+
+  paperjs-watch:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    volumes:
+      - ./dist:/app/dist
+    command: yarn build
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./src
+          target: /app/src

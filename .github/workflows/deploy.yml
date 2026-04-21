@@ -1,0 +1,100 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  test:
+    uses: ./.github/workflows/_test.yml
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    with:
+      browser: chromium
+
+  build:
+    name: Build Distribution
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build distribution files
+        run: docker compose run --rm paperjs-dist
+
+      - name: Verify distribution
+        run: |
+          test -f dist/paper-full.js || { echo "paper-full.js not found"; exit 1; }
+          test -f dist/paper-core.js || { echo "paper-core.js not found"; exit 1; }
+          ls -lh dist/
+
+      - name: Create release archives
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF" ] && VERSION="dev"
+          tar -czf paper-${VERSION}.tar.gz dist/
+          zip -r paper-${VERSION}.zip dist/
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-js-distribution
+          path: |
+            dist/
+            paper-*.tar.gz
+            paper-*.zip
+          retention-days: 90
+
+  publish:
+    name: Publish to GitHub Packages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: paper-js-distribution
+          path: ./
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://npm.pkg.github.com
+
+      - name: Remove private flag for publishing
+        run: node -e "const p=require('./package.json'); delete p.private; require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2))"
+
+      - name: Publish to GitHub Packages
+        run: npm publish --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            paper-*.tar.gz
+            paper-*.zip
+            dist/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -403,7 +403,9 @@ new function() {
     }, {}), {
         id: function(item, value) {
             definitions[value] = item;
-            if (item.setName)
+            // Same check used in setName to test if IDs are numeric. Numeric IDs make setName throw an exception.
+            // Better to duplicate the check than to wrap this in a try block & swallow all other potential exceptions.
+            if (item.setName && ((+value) + '' !== value))
                 item.setName(value);
         },
 
@@ -497,7 +499,14 @@ new function() {
                 if (matrix)
                     group.transform(matrix);
             }
-        }
+        },
+
+        'fill-rule': function(item, value) {
+            // Sometimes, the fill-rule attribute will be set to "none" due to a paper.js bug.
+            // This is coerced into a `null`. A null `fillRule` will cause certain operaions to error out.
+            // So, only set the fill rule if it's one of the two valid options: "evenodd" and "nonzero".
+			if (value === 'evenodd' || value === 'nonzero') item.fillRule = value;
+		}
     });
 
     function getAttribute(node, name, styles) {

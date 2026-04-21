@@ -199,7 +199,7 @@ new function() {
         return SvgElement.create('use', attrs, formatter);
     }
 
-    function exportGradient(color) {
+    function exportGradient(color, item) {
         // NOTE: As long as the fillTransform attribute is not implemented,
         // we need to create a separate gradient object for each gradient,
         // even when they share the same gradient definition.
@@ -231,6 +231,13 @@ new function() {
                     y2: destination.y
                 };
             }
+            // Scratch-specific: apply inverse of item transform for text elements
+            // because they use transform instead of x/y.
+            if (item instanceof paper.PointText) {
+                attrs.gradientTransform = getTransform(
+                    item._matrix.clone().invert(), false, formatter).transform;
+            }
+
             attrs.gradientUnits = 'userSpaceOnUse';
             gradientNode = SvgElement.create((radial ? 'radial' : 'linear')
                     + 'Gradient', attrs, formatter);
@@ -289,10 +296,19 @@ new function() {
             var get = entry.get,
                 type = entry.type,
                 value = item[get]();
+
+            // In some cases, the style's value is undefined. Trying to save it
+            // will result in erroneous behavior; for instance, properties like
+            // "fill-rule" will have the invalid value of "none" if undefined.
+            if (value === undefined) return;
+
             if (entry.exportFilter
                     ? entry.exportFilter(item, value)
                     : options.reduceAttributes == false
-                        || !parent || !Base.equals(parent[get](), value)) {
+                        || !parent || !Base.equals(parent[get](), value)
+                        // Always apply styles to text elements because
+                        // gradients must be specified to avoid transform problems.
+                        || item instanceof paper.PointText) {
                 if (type === 'color' && value != null) {
                     // Support for css-style rgba() values is not in SVG 1.1, so
                     // separate the alpha value of colors with alpha into the
