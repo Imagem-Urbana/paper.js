@@ -1,5 +1,8 @@
 # Paper.js Build Environment
 
+# --- Separate runtime for Playwright ---
+FROM node:22-bookworm AS playwright-node
+
 # --- Base stage: dependencies only ---
 FROM node:18-bookworm AS base
 
@@ -45,13 +48,16 @@ CMD ["yarn", "dist"]
 # --- Test stage: adds Playwright browser ---
 FROM base AS test
 
+# Keep paper.js on Node 18; use Node 22 only for Playwright.
+COPY --from=playwright-node /usr/local/bin/node /opt/node22/bin/node
+
 ARG BROWSER=chromium
 ENV BROWSER=${BROWSER}
 ARG CACHE_DATE=unknown
 
 # CACHE_DATE busts cache to always fetch the latest browser version
 RUN echo "Cache date: ${CACHE_DATE}" && \
-    npx playwright install-deps ${BROWSER} && \
-    npx playwright install ${BROWSER}
+    /opt/node22/bin/node node_modules/playwright/cli.js install-deps ${BROWSER} && \
+    /opt/node22/bin/node node_modules/playwright/cli.js install ${BROWSER}
 
-CMD ["sh", "-c", "yarn build && yarn test"]
+CMD ["sh", "-c", "yarn build && yarn test:node && PATH=/opt/node22/bin:$PATH yarn test:playwright"]

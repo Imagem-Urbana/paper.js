@@ -13,7 +13,6 @@
 // Playwright-based QUnit test runner for browser tests.
 // Replaces the PhantomJS runner from gulp-qunits.
 
-var playwright = require('playwright');
 var path = require('path');
 var fs = require('fs');
 var log = require('fancy-log');
@@ -130,6 +129,7 @@ function logAssertion(data) {
  * @param {function} callback - Called with (err) on completion
  */
 function run(options, callback) {
+    var playwright = require('playwright');
     var timeout = (options.timeout || 40) * 1000;
     var url = options.url;
     if (options.checkGlobals) {
