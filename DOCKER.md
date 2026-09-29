@@ -82,10 +82,15 @@ Build complete distribution with documentation:
 docker run --rm -v $(pwd)/dist:/app/dist paperjs-build yarn dist
 ```
 
-Run tests:
+Run tests (Node tests use Node 18; Playwright setup and browser tests use Node 22):
 ```bash
-docker run --rm paperjs-build yarn test
+docker build --target test --build-arg BROWSER=chrome-beta -t paperjs-test .
+docker run --rm -v "$(pwd)/test-results:/app/test-results" paperjs-test
 ```
+
+The test image uses the Node 18 base image for the paper.js build and Node tests.
+It includes a separate Node 22 executable for Playwright, allowing Playwright
+to be updated without changing the Node version used to test paper.js.
 
 ## Output
 
