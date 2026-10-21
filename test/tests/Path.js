@@ -663,3 +663,136 @@ test('Path#closed with blend mode', function() {
     view.update();
     expect(0);
 });
+
+test('Path#pruneCollinear open paths and finite segment distance', function() {
+    var path = new Path([[0, 0], [25, 0.1], [50, -0.2], [75, 0.1], [100, 0]]),
+        first = path.firstSegment,
+        last = path.lastSegment;
+    strictEqual(path.pruneCollinear(0.5), path, 'returns this path');
+    strictEqual(path.segments.length, 2, 'removes near-collinear samples');
+    strictEqual(path.firstSegment, first, 'preserves first segment');
+    strictEqual(path.lastSegment, last, 'preserves last segment');
+    strictEqual(path.hasHandles(), false, 'no curves are introduced');
+    path = new Path([[0, 0], [3, 7], [6, 14], [9, 21]]);
+    path.pruneCollinear();
+    strictEqual(path.segments.length, 2, 'exact diagonal collinearity');
+    path = new Path([[0, 0], [2, 0], [1, 0]]);
+    path.pruneCollinear(0.5);
+    strictEqual(path.segments.length, 3, 'retains collinear overshoots');
+    path = new Path([[0, 0], [0, 0], [1e-12, 0], [1, 0], [1, 0]]);
+    path.pruneCollinear(0);
+    strictEqual(path.segments.length, 2, 'duplicates and short segments');
+    path = new Path([[0, 0], [1, 1], [0, 0]]);
+    path.pruneCollinear(0.1);
+    strictEqual(path.segments.length, 3, 'coincident open endpoints');
+    path = new Path([[0, 0], [1, 0.5], [2, 0]]);
+    path.pruneCollinear(0.5);
+    strictEqual(path.segments.length, 2, 'tolerance is inclusive');
+    path = new Path([[0, 0], [1, 0.500001], [2, 0]]);
+    path.pruneCollinear(0.5);
+    strictEqual(path.segments.length, 3, 'retains deviations beyond tolerance');
+});
+
+test('Path#pruneCollinear closed seams, winding and idempotence', function() {
+    var points = [[50, 0.01], [100, 0], [100, 50], [100, 100],
+            [50, 100], [0, 100], [0, 50], [0, 0], [0, 0]];
+    for (var reversed = 0; reversed < 2; reversed++) {
+        for (var seam = 0; seam < points.length; seam++) {
+            var path = new Path({
+                segments: points.slice(seam).concat(points.slice(0, seam)),
+                closed: true
+            });
+            if (reversed)
+                path.reverse();
+            var clockwise = path.clockwise;
+            path.fullySelected = true;
+            path.pruneCollinear(0.1);
+            strictEqual(path.segments.length, 4, 'four corners at seam ' + seam);
+            strictEqual(path.closed, true, 'stays closed');
+            strictEqual(path.clockwise, clockwise, 'preserves winding');
+            strictEqual(path.fullySelected, true, 'preserves selection');
+            var json = path.exportJSON();
+            path.pruneCollinear(0.1);
+            strictEqual(path.exportJSON(), json, 'idempotent');
+        }
+    }
+    var triangle = new Path({
+        segments: [[0, 0], [1, 0], [2, 0], [1, 1]], closed: true
+    });
+    triangle.pruneCollinear(100);
+    strictEqual(triangle.segments.length, 3, 'large tolerance retains three corners');
+    ok(Math.abs(triangle.area) > 0, 'does not collapse closed polygons');
+});
+
+test('Path#pruneCollinear safe no-ops and validation', function() {
+    var paths = [new Path(), new Path([[1, 1]]), new Path([[0, 0], [1, 0]]),
+        new Path({ segments: [[0, 0], [1, 0], [2, 0], [0, 0]], closed: true }),
+        new Path.Circle([0, 0], 100)];
+    paths.forEach(function(path) {
+        var json = path.exportJSON();
+        path.pruneCollinear(1);
+        strictEqual(path.exportJSON(), json, 'safe unchanged geometry');
+    });
+    var path = new Path([[0, 0], [1, 0], [2, 0]]),
+        json = path.exportJSON();
+    [-1, NaN, Infinity, -Infinity, null, '1'].forEach(function(tolerance) {
+        throws(function() { path.pruneCollinear(tolerance); }, RangeError);
+        strictEqual(path.exportJSON(), json, 'invalid tolerance never mutates');
+    });
+});
+
+test('Path#pruneCollinear independently bounded original chains', function() {
+    // This verifier checks each replaced original edge, not the implementation's
+    // chosen split vertices. Both directions are sampled for each replacement.
+    function verify(points, closed, tolerance) {
+        var path = new Path({ segments: points, closed: closed }),
+            source = path.segments.slice();
+        path.pruneCollinear(tolerance);
+        var retained = path.segments,
+            edges = closed ? retained.length : retained.length - 1;
+        for (var i = 0; i < edges; i++) {
+            var first = source.indexOf(retained[i]),
+                last = source.indexOf(retained[(i + 1) % retained.length]),
+                chord = new Path([retained[i].point,
+                    retained[(i + 1) % retained.length].point]),
+                chain = new Path();
+            for (var index = first; ; index = (index + 1) % source.length) {
+                chain.add(source[index].point);
+                if (index === last)
+                    break;
+            }
+            var maximum = 0;
+            for (var j = 0; j < chain.curves.length; j++) {
+                for (var sample = 0; sample <= 4; sample++) {
+                    var point = chain.curves[j].getPointAtTime(sample / 4);
+                    maximum = Math.max(maximum,
+                        point.getDistance(chord.getNearestPoint(point)));
+                }
+            }
+            for (var sample = 0; sample <= 20; sample++) {
+                var point = chord.getPointAt(chord.length * sample / 20);
+                maximum = Math.max(maximum,
+                    point.getDistance(chain.getNearestPoint(point)));
+            }
+            ok(maximum <= tolerance + 1e-8, 'replacement chain deviation ' + maximum);
+            chord.remove();
+            chain.remove();
+        }
+    }
+    var points = [];
+    for (var i = 0; i <= 100; i++)
+        points.push([i, Math.sin(i * 0.37) * 0.4]);
+    verify(points, false, 0.5);
+    verify(points.concat([[100, 100], [0, 100]]), true, 0.5);
+    // Repeated local tests against already pruned vertices could accumulate error.
+    verify([[0, 0], [1, 0.3], [2, 0.6], [3, 0.9], [4, 0.3], [5, 0]], false, 0.5);
+});
+
+test('Path#pruneCollinear large paths without recursion', function() {
+    var points = [];
+    for (var i = 0; i < 50000; i++)
+        points.push([i, i % 2 ? 0.01 : -0.01]);
+    var path = new Path(points);
+    path.pruneCollinear(0.1);
+    strictEqual(path.segments.length, 2, 'simplifies 50,000 vertices');
+});
