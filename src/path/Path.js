@@ -1242,6 +1242,151 @@ var Path = PathItem.extend(/** @lends Path# */{
         return this;
     },
 
+    /**
+     * Removes redundant vertices from a polygonal path without moving retained
+     * points or introducing curves. The maximum distance between each original
+     * polygonal chain and its replacement segment is bounded by the tolerance,
+     * measured in the path's local coordinate system.
+     *
+     * Open endpoints are preserved. Closed paths are simplified across their
+     * closing edge and retain at least three distinct, noncollinear vertices.
+     * Degenerate closed paths and paths with handles are left unchanged.
+     * This method does not guarantee preservation of polygon topology.
+     *
+     * Uses iterative Ramer-Douglas-Peucker with linear auxiliary storage and
+     * quadratic worst-case running time. Unlike {@link #simplify}, this method
+     * only removes vertices and never fits Bezier curves.
+     *
+     * @param {Number} [tolerance=0] the maximum geometric deviation, finite and
+     *     nonnegative; zero removes only exactly collinear intermediate points
+     * @return {Path} this path
+     * @throws {RangeError} if tolerance is negative or non-finite
+     *
+     * @example
+     * var path = new Path({
+     *     segments: [[0, 0], [25, 0.1], [50, -0.2], [75, 0.1], [100, 0]]
+     * });
+     * path.pruneCollinear(0.5);
+     * // Two endpoints remain: [0, 0] and [100, 0].
+     */
+    pruneCollinear: function(tolerance) {
+        if (tolerance === undefined)
+            tolerance = 0;
+        if (typeof tolerance !== 'number' || !isFinite(tolerance)
+                || tolerance < 0)
+            throw new RangeError('Tolerance must be finite and nonnegative');
+        var segments = this._segments,
+            length = segments.length,
+            closed = this._closed;
+        if (length <= (closed ? 3 : 2) || this.hasHandles())
+            return this;
+        for (var i = 0; i < length; i++) {
+            var point = segments[i]._point;
+            if (!isFinite(point.x) || !isFinite(point.y))
+                return this;
+        }
+
+        // Clamp to the finite chord: distance to the infinite line would erase
+        // backtracking vertices, including overshoots along a straight line.
+        function distanceSquared(point, from, to) {
+            var dx = to.x - from.x,
+                dy = to.y - from.y,
+                denominator = dx * dx + dy * dy,
+                projection = (point.x - from.x) * dx
+                    + (point.y - from.y) * dy,
+                t = denominator ? Math.max(0, Math.min(1,
+                    projection / denominator)) : 0,
+                x = point.x - from.x - t * dx,
+                y = point.y - from.y - t * dy;
+            if (denominator && projection >= 0 && projection <= denominator
+                    && (point.x - from.x) * dy === (point.y - from.y) * dx)
+                return 0;
+            return x * x + y * y;
+        }
+
+        var start = 0,
+            anchors = [0, length - 1];
+        if (closed) {
+            // A canonical extreme and its farthest vertex give a stable seam.
+            for (var i = 1; i < length; i++) {
+                var point = segments[i]._point,
+                    first = segments[start]._point;
+                if (point.x < first.x || point.x === first.x && point.y < first.y)
+                    start = i;
+            }
+        }
+        function getPoint(index) {
+            return segments[(start + index) % length]._point;
+        }
+        if (closed) {
+            var opposite = 0,
+                farthest = 0;
+            for (var i = 1; i < length; i++) {
+                var distance = getPoint(i).getDistance(getPoint(0), true);
+                if (distance > farthest) {
+                    farthest = distance;
+                    opposite = i;
+                }
+            }
+            // Force a third noncollinear anchor before simplifying. Adding it
+            // afterwards could invalidate the error bound of an accepted chord.
+            var third = 0;
+            farthest = 0;
+            for (var i = 1; i < length; i++) {
+                var distance = distanceSquared(getPoint(i), getPoint(0),
+                        getPoint(opposite));
+                if (distance > farthest) {
+                    farthest = distance;
+                    third = i;
+                }
+            }
+            if (!farthest)
+                return this;
+            anchors = [0, Math.min(opposite, third),
+                Math.max(opposite, third), length];
+        }
+        var keep = [],
+            stack = [],
+            threshold = tolerance * tolerance;
+        for (var i = 0; i < anchors.length; i++) {
+            keep[(start + anchors[i]) % length] = true;
+            if (i)
+                stack.push([anchors[i - 1], anchors[i]]);
+        }
+        while (stack.length) {
+            var range = stack.pop(),
+                from = range[0],
+                to = range[1],
+                index = -1,
+                maximum = threshold;
+            for (var i = from + 1; i < to; i++) {
+                var distance = distanceSquared(getPoint(i), getPoint(from),
+                        getPoint(to));
+                if (distance > maximum) {
+                    maximum = distance;
+                    index = i;
+                }
+            }
+            if (index !== -1) {
+                keep[(start + index) % length] = true;
+                stack.push([from, index], [index, to]);
+            }
+        }
+        var retained = [];
+        for (var i = 0; i < length; i++) {
+            if (keep[i])
+                retained.push(segments[i]);
+        }
+        if (retained.length !== length) {
+            var fullySelected = this.isFullySelected();
+            this.removeSegments();
+            this.addSegments(retained);
+            if (fullySelected)
+                this.setFullySelected(true);
+        }
+        return this;
+    },
+
     // NOTE: Documentation is in PathItem#reverse()
     reverse: function() {
         this._segments.reverse();

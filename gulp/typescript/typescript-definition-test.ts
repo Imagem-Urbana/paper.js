@@ -674,6 +674,8 @@ path.splitAt(curveLocation);
 path.join(path);
 path.join(path, 0);
 path.reduce(object);
+path = path.pruneCollinear();
+path = path.pruneCollinear(0.5);
 path.toShape();
 path.toShape(true);
 path.getLocationOf(pointLike);
